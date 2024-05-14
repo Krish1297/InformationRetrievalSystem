@@ -17,13 +17,15 @@ def extract_collection(source_file_path: str) -> list[Document]:
     fables = fables[5:]
     titles = []
     paragraphs = []
-
+    # print(fables)
     catalog = []  # This dictionary will store the document raw_data.
     for item in fables:
-        if item.startswith('\n  '):
+        if item.startswith('\n  ') or item.startswith('\n'):
             titles.append(item.strip())
         else:
             paragraphs.append(item.strip())
+    # print(titles[22])
+    # print(paragraphs[22])
     
     for i in range(0,len(titles)):
         document = Document()
@@ -40,7 +42,7 @@ def extract_collection(source_file_path: str) -> list[Document]:
 
     # TODO: Implement this function. (PR02)
     # raise NotImplementedError('Not implemented yet!')
-
+    print(len(catalog))
     return catalog
 
 
