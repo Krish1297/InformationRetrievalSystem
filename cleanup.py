@@ -1,7 +1,7 @@
 # Contains all functions that deal with stop word removal.
 
 from document import Document
-
+import re
 
 def remove_symbols(text_string: str) -> str:
     """
@@ -22,8 +22,11 @@ def is_stop_word(term: str, stop_word_list: list[str]) -> bool:
     :param term: The term to be checked.
     :return: True if the term is a stop word.
     """
+    if term in stop_word_list:
+        return True
+    return False
     # TODO: Implement this function  (PR02)
-    raise NotImplementedError('Not implemented yet!')
+    # raise NotImplementedError('Not implemented yet!')
 
 
 def remove_stop_words_from_term_list(term_list: list[str]) -> list[str]:
@@ -55,8 +58,11 @@ def load_stop_word_list(raw_file_path: str) -> list[str]:
     :param raw_file_path: Path to the text file that contains the stop words
     :return: List of stop words
     """
+    with open(raw_file_path, "r") as file:
+        stopWordList = [line.strip() for line in file.readlines()]
+    return stopWordList
     # TODO: Implement this function. (PR02)
-    raise NotImplementedError('To be implemented in PR02')
+    # raise NotImplementedError('To be implemented in PR02')
 
 
 def create_stop_word_list_by_frequency(collection: list[Document]) -> list[str]:
@@ -66,5 +72,32 @@ def create_stop_word_list_by_frequency(collection: list[Document]) -> list[str]:
     :param collection: Collection to process
     :return: List of stop words
     """
+    documentRawText = ' '.join(doc.raw_text for doc in collection)
+
+    tokens = re.findall(r'\b\w+\b', documentRawText.lower())
+    print (tokens)
+    # Count term frequencies
+    term_frequency = {}
+    for token in tokens:
+        if token in term_frequency:
+            term_frequency[token] += 1
+        else:
+            term_frequency[token] = 1
+    
+    # Determine the number of terms to consider as stop words (customize this threshold as needed)
+    total_tokens = len(tokens)
+    high_freq_threshold = total_tokens * 0.01  # Top 1% terms
+    low_freq_threshold = 2  # Terms that appear 2 times or fewer
+
+    # Identify high-frequency terms
+    high_freq_terms = {term for term, freq in term_frequency.items() if freq > high_freq_threshold}
+    
+    # Identify low-frequency terms
+    low_freq_terms = {term for term, freq in term_frequency.items() if freq <= low_freq_threshold}
+
+    # Combine high and low frequency terms into a stop word list
+    # stop_words = list(high_freq_terms) + list(low_freq_terms)
+    
+    return list(stop_words)
     # TODO: Implement this function. (PR02)
-    raise NotImplementedError('To be implemented in PR02')
+    # raise NotImplementedError('To be implemented in PR02')

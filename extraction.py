@@ -24,8 +24,6 @@ def extract_collection(source_file_path: str) -> list[Document]:
             titles.append(item.strip())
         else:
             paragraphs.append(item.strip())
-    # print(titles[22])
-    # print(paragraphs[22])
     
     for i in range(0,len(titles)):
         document = Document()
@@ -42,7 +40,6 @@ def extract_collection(source_file_path: str) -> list[Document]:
 
     # TODO: Implement this function. (PR02)
     # raise NotImplementedError('Not implemented yet!')
-    print(len(catalog))
     return catalog
 
 
