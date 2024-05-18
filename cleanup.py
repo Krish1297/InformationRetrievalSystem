@@ -10,9 +10,9 @@ def remove_symbols(text_string: str) -> str:
     :param text:
     :return:
     """
-
+    return re.sub(r'[^\w\s]', '', text_string).lower()
     # TODO: Implement this function. (PR02)
-    raise NotImplementedError('Not implemented yet!')
+    # raise NotImplementedError('Not implemented yet!')
 
 
 def is_stop_word(term: str, stop_word_list: list[str]) -> bool:
@@ -95,8 +95,18 @@ def create_stop_word_list_by_frequency(collection: list[Document]) -> list[str]:
     # Identify low-frequency terms
     low_freq_terms = {term for term, freq in term_frequency.items() if freq <= low_freq_threshold}
 
+    num_docs = len(collection)
+    doc_freq = {term: 0 for term in term_freq}
+    for doc in docs:
+        for term in tokens:
+            if term in doc_freq:
+                doc_freq[term] += 1
+    
+    idf = {term: math.log(num_docs / (1 + doc_freq[term])) for term in doc_freq}
+    low_idf_terms = {term for term, score in idf.items() if score < 1.0}
+    
     # Combine high and low frequency terms into a stop word list
-    # stop_words = list(high_freq_terms) + list(low_freq_terms)
+    stop_words = list(high_freq_terms) + list(low_freq_terms) + list(low_idf_terms)
     
     return list(stop_words)
     # TODO: Implement this function. (PR02)
