@@ -16,7 +16,7 @@ class RetrievalModel(ABC):
         :param stemming: Controls, whether stemming is used on the document's terms
         :return: A representation of the document. Data type and content depend on the implemented model.
         """
-        raise NotImplementedError()
+        # raise NotImplementedError()
 
     @abstractmethod
     def query_to_representation(self, query: str):
@@ -25,7 +25,7 @@ class RetrievalModel(ABC):
         :param query: Search query of the user
         :return: Query representation in whatever data type or format is required by the model.
         """
-        raise NotImplementedError()
+        # raise NotImplementedError()
 
     @abstractmethod
     def match(self, document_representation, query_representation) -> float:
@@ -36,16 +36,40 @@ class RetrievalModel(ABC):
         :return: Numerical approximation of the similarity between the query and document representation. Higher is
         "more relevant", lower is "less relevant".
         """
-        raise NotImplementedError()
+        # raise NotImplementedError()
 
 
 class LinearBooleanModel(RetrievalModel):
     # TODO: Implement all abstract methods and __init__() in this class. (PR02)
     def __init__(self):
-        raise NotImplementedError()  # TODO: Remove this line and implement the function.
-
+        # raise NotImplementedError()  # TODO: Remove this line and implement the function.
+        pass
+        
     def __str__(self):
         return 'Boolean Model (Linear)'
+    
+    vocabulary = set()
+    
+    def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
+        tokens = self.tokenize(document.raw_text)
+        self.vocabulary.update(tokens)
+        return self.vectorize(tokens)
+    
+    def query_to_representation(self, query: str):
+        query_terms = self.tokenize(query)
+        return self.vectorize_query(query_terms)
+    
+    def vectorize_query(self, query_terms):
+        return [1.0 if term in query_terms else 0.0 for term in sorted(self.vocabulary)]
+
+    def match(self, document_representation, query_representation) -> float:
+        return float(sum(d * q for d, q in zip(document_representation, query_representation)))
+
+    def tokenize(self, text):
+        return text.lower().split()
+
+    def vectorize(self, tokens):
+        return [1.0 if term in tokens else 0.0 for term in sorted(self.vocabulary)]
 
 
 class InvertedListBooleanModel(RetrievalModel):

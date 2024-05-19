@@ -123,8 +123,8 @@ class InformationRetrievalSystem(object):
 
                 # Output of quality metrics:
                 print()
-                print(f'precision: {self.calculate_precision(results)}')
-                print(f'recall: {self.calculate_recall(results)}')
+                # print(f'precision: {self.calculate_precision(results)}')
+                # print(f'recall: {self.calculate_recall(results)}')
 
             elif action_choice == CHOICE_EXTRACT:
                 # Extract document collection from text file.

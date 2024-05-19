@@ -54,6 +54,7 @@ def remove_stop_words_from_term_list(term_list: list[str]) -> list[str]:
     no_stopwordList = [term for term in new_term_list if not is_stop_word(term, stop_word_list)]
     print(no_stopwordList)
     return no_stopwordList
+
     # Hint:  Implement the functions remove_symbols() and is_stop_word() first and use them here.
     # TODO: Implement this function. (PR02)
     # raise NotImplementedError('Not implemented yet!')
@@ -70,6 +71,7 @@ def filter_collection(collection: list[Document]):
         list_doc_raw_text = doc.raw_text.split()
         list_total = list_doc_title + list_doc_raw_text
         filtered_terms = remove_stop_words_from_term_list (list_total)
+        
     # Hint:  Implement remove_stop_words_from_term_list first and use it here.
     # TODO: Implement this function. (PR02)
     # raise NotImplementedError('To be implemented in PR02')
@@ -100,7 +102,7 @@ def create_stop_word_list_by_frequency(collection: list[Document]) -> list[str]:
 
     tokens = re.findall(r'\b\w+\b', documentRawText.lower())
     print (tokens)
-    # Count term frequencies
+    
     term_frequency = {}
     for token in tokens:
         if token in term_frequency:
@@ -108,15 +110,12 @@ def create_stop_word_list_by_frequency(collection: list[Document]) -> list[str]:
         else:
             term_frequency[token] = 1
     
-    # Determine the number of terms to consider as stop words (customize this threshold as needed)
     total_tokens = len(tokens)
     high_freq_threshold = total_tokens * 0.01  # Top 1% terms
     low_freq_threshold = 2  # Terms that appear 2 times or fewer
 
-    # Identify high-frequency terms
     high_freq_terms = {term for term, freq in term_frequency.items() if freq > high_freq_threshold}
     
-    # Identify low-frequency terms
     low_freq_terms = {term for term, freq in term_frequency.items() if freq <= low_freq_threshold}
 
     num_docs = len(collection)
@@ -129,9 +128,8 @@ def create_stop_word_list_by_frequency(collection: list[Document]) -> list[str]:
     idf = {term: math.log(num_docs / (1 + doc_freq[term])) for term in doc_freq}
     low_idf_terms = {term for term, score in idf.items() if score < 1.0}
     
-    # Combine high and low frequency terms into a stop word list
-    stop_words = list(high_freq_terms) + list(low_freq_terms) + list(low_idf_terms)
-    
+    stop_words = list(high_freq_terms) + list(low_freq_terms) + list(low_idf_terms)    
     return list(stop_words)
+
     # TODO: Implement this function. (PR02)
     # raise NotImplementedError('To be implemented in PR02')
