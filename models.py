@@ -53,16 +53,18 @@ class LinearBooleanModel(RetrievalModel):
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
         tokens = self.tokenize(document.raw_text)
         self.vocabulary.update(tokens)
-        return self.vectorize(tokens)
-    
+        return tokens
+            
     def query_to_representation(self, query: str):
         query_terms = self.tokenize(query)
-        return self.vectorize_query(query_terms)
+        return query_terms
     
     def vectorize_query(self, query_terms):
         return [1.0 if term in query_terms else 0.0 for term in sorted(self.vocabulary)]
 
     def match(self, document_representation, query_representation) -> float:
+        document_representation = self.vectorize(document_representation)
+        query_representation = self.vectorize_query(query_representation)
         return float(sum(d * q for d, q in zip(document_representation, query_representation)))
 
     def tokenize(self, text):
