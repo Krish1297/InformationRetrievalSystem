@@ -51,7 +51,8 @@ class LinearBooleanModel(RetrievalModel):
     vocabulary = set()
     
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
-        tokens = self.tokenize(document.raw_text)
+        tokens = self.tokenize(document.title +" "+ document.raw_text)
+        print(tokens)
         if(stopword_filtering):
             new_tokens =  cleanup.remove_stop_words_from_term_list(tokens)
         else:
@@ -75,9 +76,6 @@ class LinearBooleanModel(RetrievalModel):
     def vectorize(self, tokens):
         return [1.0 if term in tokens else 0.0 for term in sorted(self.vocabulary)]
     
-    # def vectorize_query(self, query_terms):
-    #     return [1.0 if term in query_terms else 0.0 for term in sorted(self.vocabulary)]
-
 
 class InvertedListBooleanModel(RetrievalModel):
     # TODO: Implement all abstract methods and __init__() in this class. (PR03)
