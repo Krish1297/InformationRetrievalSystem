@@ -52,7 +52,6 @@ class LinearBooleanModel(RetrievalModel):
     
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
         tokens = self.tokenize(document.title +" "+ document.raw_text)
-        print(tokens)
         if(stopword_filtering):
             new_tokens =  cleanup.remove_stop_words_from_term_list(tokens)
         else:
