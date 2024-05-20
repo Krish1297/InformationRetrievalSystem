@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 from document import Document
-
+import cleanup
 
 class RetrievalModel(ABC):
     @abstractmethod
@@ -52,19 +52,21 @@ class LinearBooleanModel(RetrievalModel):
     
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
         tokens = self.tokenize(document.raw_text)
-        self.vocabulary.update(tokens)
-        return tokens
+        if(stopword_filtering):
+            new_tokens =  cleanup.remove_stop_words_from_term_list(tokens)
+        else:
+            new_tokens = tokens
+        self.vocabulary.update(new_tokens)
+        return new_tokens
             
     def query_to_representation(self, query: str):
         query_terms = self.tokenize(query)
         return query_terms
     
-    def vectorize_query(self, query_terms):
-        return [1.0 if term in query_terms else 0.0 for term in sorted(self.vocabulary)]
 
     def match(self, document_representation, query_representation) -> float:
         document_representation = self.vectorize(document_representation)
-        query_representation = self.vectorize_query(query_representation)
+        query_representation = self.vectorize(query_representation)
         return float(sum(d * q for d, q in zip(document_representation, query_representation)))
 
     def tokenize(self, text):
@@ -72,6 +74,9 @@ class LinearBooleanModel(RetrievalModel):
 
     def vectorize(self, tokens):
         return [1.0 if term in tokens else 0.0 for term in sorted(self.vocabulary)]
+    
+    # def vectorize_query(self, query_terms):
+    #     return [1.0 if term in query_terms else 0.0 for term in sorted(self.vocabulary)]
 
 
 class InvertedListBooleanModel(RetrievalModel):

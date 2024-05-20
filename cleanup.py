@@ -52,7 +52,7 @@ def remove_stop_words_from_term_list(term_list: list[str]) -> list[str]:
         new_term_list.append(cleaned_term)
     
     no_stopwordList = [term for term in new_term_list if not is_stop_word(term, stop_word_list)]
-    print(no_stopwordList)
+    
     return no_stopwordList
 
     # Hint:  Implement the functions remove_symbols() and is_stop_word() first and use them here.
