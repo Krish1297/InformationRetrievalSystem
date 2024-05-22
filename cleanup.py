@@ -43,7 +43,6 @@ def remove_stop_words_from_term_list(term_list: list[str]) -> list[str]:
     STOPWORD_FILE_PATH = os.path.join(DATA_PATH, 'stopwords.json')
     with open(STOPWORD_FILE_PATH, "r") as json_file:
         stop_word_list = json.load(json_file)
-    # print(term_list)
     new_term_list = []
     no_stopwordList = []
     
@@ -51,7 +50,7 @@ def remove_stop_words_from_term_list(term_list: list[str]) -> list[str]:
         cleaned_term = remove_symbols(term)
         new_term_list.append(cleaned_term)
     
-    no_stopwordList = [term for term in new_term_list if not is_stop_word(term, stop_word_list)]
+    no_stopwordList = [term.lower() for term in new_term_list if not is_stop_word(term, stop_word_list)]
     
     return no_stopwordList
 
@@ -71,7 +70,7 @@ def filter_collection(collection: list[Document]):
         list_doc_raw_text = doc.raw_text.split()
         list_total = list_doc_title + list_doc_raw_text
         filtered_terms = remove_stop_words_from_term_list (list_total)
-        
+        doc.filtered_terms = list(set(filtered_terms))
     # Hint:  Implement remove_stop_words_from_term_list first and use it here.
     # TODO: Implement this function. (PR02)
     # raise NotImplementedError('To be implemented in PR02')
@@ -99,10 +98,7 @@ def create_stop_word_list_by_frequency(collection: list[Document]) -> list[str]:
     :return: List of stop words
     """
     documentRawText = ' '.join(doc.raw_text for doc in collection)
-
     tokens = re.findall(r'\b\w+\b', documentRawText.lower())
-    print (tokens)
-    
     term_frequency = {}
     for token in tokens:
         if token in term_frequency:
@@ -112,23 +108,13 @@ def create_stop_word_list_by_frequency(collection: list[Document]) -> list[str]:
     
     total_tokens = len(tokens)
     high_freq_threshold = total_tokens * 0.01  # Top 1% terms
-    low_freq_threshold = 2  # Terms that appear 2 times or fewer
-
-    high_freq_terms = {term for term, freq in term_frequency.items() if freq > high_freq_threshold}
-    
+    low_freq_threshold = 2  # Terms that appear 2 time or fewer
+    high_freq_terms = {term for term, freq in term_frequency.items() if freq >= high_freq_threshold}
     low_freq_terms = {term for term, freq in term_frequency.items() if freq <= low_freq_threshold}
-
-    num_docs = len(collection)
-    doc_freq = {term: 0 for term in term_frequency}
-    for doc in collection:
-        for term in tokens:
-            if term in doc_freq:
-                doc_freq[term] += 1
+ 
     
-    idf = {term: math.log(num_docs / (1 + doc_freq[term])) for term in doc_freq}
-    low_idf_terms = {term for term, score in idf.items() if score < 1.0}
+    stop_words = list(high_freq_terms) + list(low_freq_terms)
     
-    stop_words = list(high_freq_terms) + list(low_freq_terms) + list(low_idf_terms)    
     return list(stop_words)
 
     # TODO: Implement this function. (PR02)
