@@ -43,16 +43,16 @@ def remove_stop_words_from_term_list(term_list: list[str]) -> list[str]:
     STOPWORD_FILE_PATH = os.path.join(DATA_PATH, 'stopwords.json')
     with open(STOPWORD_FILE_PATH, "r") as json_file:
         stop_word_list = json.load(json_file)
-    new_term_list = []
-    no_stopwordList = []
+    cleaned_term_list = []
+    terms_without_stopwords_List = []
     
     for term in term_list:
         cleaned_term = remove_symbols(term)
-        new_term_list.append(cleaned_term)
+        cleaned_term_list.append(cleaned_term)
     
-    no_stopwordList = [term.lower() for term in new_term_list if not is_stop_word(term, stop_word_list)]
+    terms_without_stopwords_List = [term.lower() for term in cleaned_term_list if not is_stop_word(term, stop_word_list)]
     
-    return no_stopwordList
+    return terms_without_stopwords_List
 
     # Hint:  Implement the functions remove_symbols() and is_stop_word() first and use them here.
     # TODO: Implement this function. (PR02)
@@ -66,9 +66,9 @@ def filter_collection(collection: list[Document]):
     :param collection: Document collection to process
     """
     for doc in collection:
-        list_doc_title = doc.title.split()
-        list_doc_raw_text = doc.raw_text.split()
-        list_total = list_doc_title + list_doc_raw_text
+        list_document_title = doc.title.split()
+        list_document_raw_text = doc.raw_text.split()
+        list_total = list_document_title + list_document_raw_text
         filtered_terms = remove_stop_words_from_term_list (list_total)
         doc.filtered_terms = list(set(filtered_terms))
     # Hint:  Implement remove_stop_words_from_term_list first and use it here.
@@ -97,7 +97,7 @@ def create_stop_word_list_by_frequency(collection: list[Document]) -> list[str]:
     :param collection: Collection to process
     :return: List of stop words
     """
-    documentRawText = ' '.join(doc.raw_text for doc in collection)
+    documentRawText = ' '.join(document.raw_text for document in collection)
     tokens = re.findall(r'\b\w+\b', documentRawText.lower())
     term_frequency = {}
     for token in tokens:
@@ -107,15 +107,15 @@ def create_stop_word_list_by_frequency(collection: list[Document]) -> list[str]:
             term_frequency[token] = 1
     
     total_tokens = len(tokens)
-    high_freq_threshold = total_tokens * 0.01  # Top 1% terms
-    low_freq_threshold = 2  # Terms that appear 2 time or fewer
-    high_freq_terms = {term for term, freq in term_frequency.items() if freq >= high_freq_threshold}
-    low_freq_terms = {term for term, freq in term_frequency.items() if freq <= low_freq_threshold}
+    high_frequency_threshold = total_tokens * 0.01  
+    low_frequency_threshold = 2  
+    high_frequency_terms = {term for term, frequency in term_frequency.items() if frequency >= high_frequency_threshold}
+    low_frequency_terms = {term for term, frequency in term_frequency.items() if frequency <= low_frequency_threshold}
  
     
-    stop_words = list(high_freq_terms) + list(low_freq_terms)
+    stop_words_list = list(high_frequency_terms) + list(low_frequency_terms)
     
-    return list(stop_words)
+    return list(stop_words_list)
 
     # TODO: Implement this function. (PR02)
     # raise NotImplementedError('To be implemented in PR02')

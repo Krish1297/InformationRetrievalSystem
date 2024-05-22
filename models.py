@@ -67,7 +67,7 @@ class LinearBooleanModel(RetrievalModel):
     def match(self, document_representation, query_representation) -> float:
         document_representation = self.vectorize(document_representation)
         query_representation = self.vectorize(query_representation)
-        return float(sum(d * q for d, q in zip(document_representation, query_representation)))
+        return float(sum(document * query for document, query in zip(document_representation, query_representation)))
 
     def tokenize(self, text):
         return text.lower().split()

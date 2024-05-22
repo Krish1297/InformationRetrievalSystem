@@ -18,12 +18,12 @@ def extract_collection(source_file_path: str) -> list[Document]:
     titles = []
     paragraphs = []
     # print(fables)
-    catalog = []  # This dictionary will store the document raw_data.
-    for item in fables:
-        if item.startswith('\n  ') or item.startswith('\n'):
-            titles.append(item.strip())
+    catalog = []  # This dictionary will store the document raw_data.   
+    for term in fables:
+        if term.startswith('\n  ') or term.startswith('\n'):
+            titles.append(term.strip())
         else:
-            paragraphs.append(item.strip())
+            paragraphs.append(term.strip())
     
     for i in range(0,len(titles)):
         document = Document()
@@ -31,10 +31,10 @@ def extract_collection(source_file_path: str) -> list[Document]:
         document.title = titles[i]
         document.raw_text = paragraphs[i]
         
-        title_str = titles[i]
-        para_str = paragraphs[i]
-        total_str = title_str + '\n' + para_str
-        terms = re.findall(r'\b\w+\b', total_str)
+        title_string = titles[i]
+        paragraph_string = paragraphs[i]
+        total_string = title_string + '\n' + paragraph_string
+        terms = re.findall(r'\b\w+\b', total_string)
         document.terms = terms
         catalog.append(document)
 
