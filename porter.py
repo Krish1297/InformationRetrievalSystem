@@ -222,10 +222,14 @@ def stem_all_documents(collection: list[Document]):
     """
     for doc in collection:
         stemmed_terms = []
-        for term in doc.terms:
-            stemmed_terms.append(stem_term(term))
-        doc.stemmed_terms = list(set(stemmed_terms))
- 
+        if(len(doc.filtered_terms) == 0):
+            for term in doc.terms:
+                stemmed_terms.append(stem_term(term))
+            doc.stemmed_terms = list(set(stemmed_terms))
+        else:
+            for term in doc.filtered_terms:
+                stemmed_terms.append(stem_term(term))
+            doc.stemmed_terms = list(set(stemmed_terms))
     # TODO: Implement this function. (PR03)
     # raise NotImplementedError('This function was not implemented yet.')
 
