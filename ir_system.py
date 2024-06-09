@@ -240,8 +240,19 @@ class InformationRetrievalSystem(object):
         :return: List of tuples, where the first element is the relevance score and the second the corresponding
         document
         """
+        if not self.model.invertedList:
+            for doc in self.collection:
+                self.model.document_to_representation(doc, stop_word_filtering, stemming)
+
+        query_representation = self.model.query_to_representation(query)
+
+        matching_doc_ids = self.model.match(None, query_representation)
+
+        results = [(1, doc) for doc in self.collection if doc.document_id in matching_doc_ids]
+        
+        return results
         # TODO: Implement this function (PR03)
-        raise NotImplementedError('To be implemented in PR04')
+        # raise NotImplementedError('To be implemented in PR04')
 
     def buckley_lewit_search(self, query: str, stemming: bool, stop_word_filtering: bool) -> list:
         """

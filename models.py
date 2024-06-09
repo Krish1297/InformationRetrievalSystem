@@ -3,8 +3,10 @@
 from abc import ABC, abstractmethod
 
 from document import Document
+from collections import defaultdict
+import re 
 import cleanup
-
+import porter
 class RetrievalModel(ABC):
     @abstractmethod
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
@@ -79,11 +81,53 @@ class LinearBooleanModel(RetrievalModel):
 class InvertedListBooleanModel(RetrievalModel):
     # TODO: Implement all abstract methods and __init__() in this class. (PR03)
     def __init__(self):
-        raise NotImplementedError()  # TODO: Remove this line and implement the function. (PR3, Task 2)
-
+        self.invertedList = {}
+        # raise NotImplementedError()  # TODO: Remove this line and implement the function. (PR3, Task 2)
+        
     def __str__(self):
         return 'Boolean Model (Inverted List)'
 
+    def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
+        # print(terms)
+        if(stopword_filtering):
+            terms =  document.filtered_terms
+        if(stemming):
+            terms = document.stemmed_terms
+        for term in terms:
+            if(len(term)!=0):
+                self.invertedList[term]=document.document_id
+        return self.invertedList
+    
+    def query_to_representation(self, query: str):
+        query = query.lower()
+        tokens = re.findall(r'\w+|\&|\||\-|\(|\)', query)
+        return tokens
+
+    def match(self, document_representation, query_representation) -> float:
+        stack = []
+        operators = {'&', '|', '-'}
+        
+        def apply_operator(op, a, b=None):
+            if op == '&':
+                return a & b
+            elif op == '|':
+                return a | b
+            elif op == '-':
+                return set(range(len(self.invertedList))) - a
+
+        for token in query_representation:
+            if token in operators:
+                if token == '-':
+                    a = stack.pop()
+                    stack.append(apply_operator(token, a))
+                else:
+                    b = stack.pop()
+                    a = stack.pop()
+                    stack.append(apply_operator(token, a, b))
+            else:
+                stack.append(self.invertedList[token])
+        
+        return stack.pop() if stack else set()
 
 class SignatureBasedBooleanModel(RetrievalModel):
     # TODO: Implement all abstract methods. (PR04)

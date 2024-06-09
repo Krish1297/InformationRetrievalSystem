@@ -129,7 +129,7 @@ def stem_term(term: str) -> str:
                     stemmed_term = stemmed_term[:-1]
                     if len(stemmed_term) <= 2:
                         return term  # Return original word
-                    return stemmed_term
+                    # return stemmed_term
                 if len(stemmed_term) <= 2:
                     return term
                 return stemmed_term
@@ -145,9 +145,8 @@ def stem_term(term: str) -> str:
                 elif (condition_d(stemmed_term) and not (stemmed_term.endswith("l") or stemmed_term.endswith("s") or stemmed_term.endswith("z"))):
                     stemmed_term = stemmed_term[:-1] 
                     if len(stemmed_term) < 3 :
-                        return term  # Return original word
-                    return stemmed_term
-                elif cond_o(stemmed_term) and get_measure(stemmed_term)== 1:
+                        return term  
+                if cond_o(stemmed_term) and get_measure(stemmed_term)== 1:
                     return stemmed_term + "e"
                 if len(stemmed_term) < 3:
                     return term
@@ -224,7 +223,8 @@ def stem_all_documents(collection: list[Document]):
         stemmed_terms = []
         if(len(doc.filtered_terms) == 0):
             for term in doc.terms:
-                stemmed_terms.append(stem_term(term))
+                if(len(term)>1):
+                    stemmed_terms.append(stem_term(term))
             doc.stemmed_terms = list(set(stemmed_terms))
         else:
             for term in doc.filtered_terms:
