@@ -88,14 +88,22 @@ class InvertedListBooleanModel(RetrievalModel):
         return 'Boolean Model (Inverted List)'
 
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
-        # print(terms)
+        # print(stopword_filtering)
         if(stopword_filtering):
             terms =  document.filtered_terms
+           
         if(stemming):
             terms = document.stemmed_terms
+        # for term in terms:
+        #     if(len(term)!=0):   
+        #         self.invertedList[term]=document.document_id
+        # return self.invertedList
+        #print(terms)
         for term in terms:
-            if(len(term)!=0):
-                self.invertedList[term]=document.document_id
+            if term:
+                if term not in self.invertedList:
+                    self.invertedList[term] = set()
+                self.invertedList[term].add(document.document_id)
         return self.invertedList
     
     def query_to_representation(self, query: str):
@@ -104,30 +112,28 @@ class InvertedListBooleanModel(RetrievalModel):
         return tokens
 
     def match(self, document_representation, query_representation) -> float:
-        stack = []
-        operators = {'&', '|', '-'}
-        
-        def apply_operator(op, a, b=None):
-            if op == '&':
-                return a & b
-            elif op == '|':
-                return a | b
-            elif op == '-':
-                return set(range(len(self.invertedList))) - a
+        result = None
+        operator = None
 
         for token in query_representation:
-            if token in operators:
-                if token == '-':
-                    a = stack.pop()
-                    stack.append(apply_operator(token, a))
-                else:
-                    b = stack.pop()
-                    a = stack.pop()
-                    stack.append(apply_operator(token, a, b))
+            
+            if token in {'&', '|', '-'}:
+                operator = token
+                print(operator)
             else:
-                stack.append(self.invertedList[token])
-        
-        return stack.pop() if stack else set()
+                term_set = self.invertedList.get(token, set())
+                
+                if result is None:
+                    result = term_set
+                    
+                elif operator == '&':
+                    result &= term_set
+                elif operator == '|':
+                    result |= term_set
+                elif operator == '-':
+                    result -= term_set
+
+        return result if result is not None else set()
 
 class SignatureBasedBooleanModel(RetrievalModel):
     # TODO: Implement all abstract methods. (PR04)
