@@ -82,6 +82,7 @@ class InvertedListBooleanModel(RetrievalModel):
     # TODO: Implement all abstract methods and __init__() in this class. (PR03)
     def __init__(self):
         self.invertedList = {}
+        self.all_docs = set() 
         # raise NotImplementedError()  # TODO: Remove this line and implement the function. (PR3, Task 2)
         
     def __str__(self):
@@ -99,11 +100,13 @@ class InvertedListBooleanModel(RetrievalModel):
         #         self.invertedList[term]=document.document_id
         # return self.invertedList
         #print(terms)
+        # self.invertedList={}
         for term in terms:
             if term:
                 if term not in self.invertedList:
                     self.invertedList[term] = set()
                 self.invertedList[term].add(document.document_id)
+        self.all_docs.add(document.document_id) 
         return self.invertedList
     
     def query_to_representation(self, query: str):
@@ -114,25 +117,43 @@ class InvertedListBooleanModel(RetrievalModel):
     def match(self, document_representation, query_representation) -> float:
         result = None
         operator = None
-
+        term_set = None
+        nested_expression = []
         for token in query_representation:
-            
-            if token in {'&', '|', '-'}:
+            if token == '(':
+                nested_expression.append((result, operator))
+                result = None
+                operator = None
+            elif token == ')':
+                nested_result, nested_operator = nested_expression.pop()
+                if nested_result is not None:
+                    if result is None:
+                        result = nested_result
+                    elif nested_operator == '&':
+                        result &= nested_result
+                    elif nested_operator == '|':
+                        result |= nested_result
+                    elif nested_operator == '-':
+                        result -= nested_result
+            elif token in {'&', '|', '-'}:
                 operator = token
-                print(operator)
+                # print(operator)
             else:
                 term_set = self.invertedList.get(token, set())
                 
+                if operator == '-' and result == None:
+                    term_set = self.all_docs - term_set 
+                    operator = None
+                        
                 if result is None:
                     result = term_set
-                    
                 elif operator == '&':
                     result &= term_set
                 elif operator == '|':
                     result |= term_set
                 elif operator == '-':
                     result -= term_set
-
+        self.invertedList = {}
         return result if result is not None else set()
 
 class SignatureBasedBooleanModel(RetrievalModel):
