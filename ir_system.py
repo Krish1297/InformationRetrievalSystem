@@ -301,7 +301,11 @@ class InformationRetrievalSystem(object):
             retrieved_documentID.append((rd[1].document_id)+1)
         # print(retrieved_documentID)
         # print(ground_truth[query])
+        if len(retrieved_documentID) == 0:
+            return 0
         
+        if query not in ground_truth:
+            return -1
         releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[query]]
         
         return len(releventDocumentInResult)/len(retrieved_documentID)
@@ -315,19 +319,20 @@ class InformationRetrievalSystem(object):
             for lines in file:
                 try:
                     term, ids = lines.split(' - ')
-                    # Remove any surrounding whitespace and split the IDs by ', '
                     doc_id_list = list(map(int, ids.strip().split(', ')))
-                    # Add to the dictionary
                     ground_truth[term.strip()] = doc_id_list
                 except ValueError as e:
-                    # print(f"Skipping line due to format error: {lines}\nError: {e}")
                     pass
         
         retrieved_docs = [t for t in result_list if t[0] == 1.0]
         retrieved_documentID = []
         for rd in retrieved_docs:
             retrieved_documentID.append((rd[1].document_id)+1)
-        
+ 
+        if query not in ground_truth:
+            return -1
+        if len(ground_truth[query]) == 0:
+            return 0
         releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[query]]
         
         return len(releventDocumentInResult)/len(ground_truth[query])
