@@ -123,8 +123,8 @@ class InformationRetrievalSystem(object):
 
                 # Output of quality metrics:
                 print()
-                # print(f'precision: {self.calculate_precision(results)}')
-                # print(f'recall: {self.calculate_recall(results)}')
+                print(f'precision: {self.calculate_precision(query, results)}')
+                print(f'recall: {self.calculate_recall(query, results)}')
 
             elif action_choice == CHOICE_EXTRACT:
                 # Extract document collection from text file.
@@ -252,7 +252,9 @@ class InformationRetrievalSystem(object):
         for doc in self.collection:
             if doc.document_id in matching_doc_ids:
                 results.append((1.0,doc))
-
+            else:
+                results.append((0.0,doc))
+        
         return results
         # TODO: Implement this function (PR03)
         # raise NotImplementedError('To be implemented in PR04')
@@ -281,13 +283,56 @@ class InformationRetrievalSystem(object):
         # TODO: Implement this function (PR04)
         raise NotImplementedError('To be implemented in PR04')
 
-    def calculate_precision(self, result_list: list[tuple]) -> float:
+    def calculate_precision(self, query: str, result_list: list[tuple]) -> float:
+        ground_truth = {} 
+        # print(query)
+        with open("raw_data/ground_truth.txt","r") as file:
+            for lines in file:
+                try:
+                    term, ids = lines.split(' - ')
+                    doc_id_list = list(map(int, ids.strip().split(', ')))
+                    ground_truth[term.strip()] = doc_id_list
+                except ValueError as e:
+                    pass
+        
+        retrieved_docs = [t for t in result_list if t[0] == 1.0]
+        retrieved_documentID = []
+        for rd in retrieved_docs:
+            retrieved_documentID.append((rd[1].document_id)+1)
+        # print(retrieved_documentID)
+        # print(ground_truth[query])
+        
+        releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[query]]
+        
+        return len(releventDocumentInResult)/len(retrieved_documentID)
+        
         # TODO: Implement this function (PR03)
-        raise NotImplementedError('To be implemented in PR03')
+        # raise NotImplementedError('To be implemented in PR03')
 
-    def calculate_recall(self, result_list: list[tuple]) -> float:
+    def calculate_recall(self, query: str, result_list: list[tuple]) -> float:
+        ground_truth = {} 
+        with open("raw_data/ground_truth.txt","r") as file:
+            for lines in file:
+                try:
+                    term, ids = lines.split(' - ')
+                    # Remove any surrounding whitespace and split the IDs by ', '
+                    doc_id_list = list(map(int, ids.strip().split(', ')))
+                    # Add to the dictionary
+                    ground_truth[term.strip()] = doc_id_list
+                except ValueError as e:
+                    # print(f"Skipping line due to format error: {lines}\nError: {e}")
+                    pass
+        
+        retrieved_docs = [t for t in result_list if t[0] == 1.0]
+        retrieved_documentID = []
+        for rd in retrieved_docs:
+            retrieved_documentID.append((rd[1].document_id)+1)
+        
+        releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[query]]
+        
+        return len(releventDocumentInResult)/len(ground_truth[query])
         # TODO: Implement this function (PR03)
-        raise NotImplementedError('To be implemented in PR03')
+        # raise NotImplementedError('To be implemented in PR03')
 
 
 if __name__ == '__main__':

@@ -90,23 +90,26 @@ class InvertedListBooleanModel(RetrievalModel):
 
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
         # print(stopword_filtering)
-        if(stopword_filtering):
+        terms = document.terms
+       
+        if (stopword_filtering and stemming):
+            terms = document.filtered_terms
+            stemmed_term_list = []
+            for t in terms:
+                stemmed_term_list.append(porter.stem_term(t))
+            terms = stemmed_term_list  
+        elif(stopword_filtering):
             terms =  document.filtered_terms
-           
-        if(stemming):
+        elif(stemming):
             terms = document.stemmed_terms
-        # for term in terms:
-        #     if(len(term)!=0):   
-        #         self.invertedList[term]=document.document_id
-        # return self.invertedList
-        #print(terms)
-        # self.invertedList={}
+
+        
         for term in terms:
             if term:
                 if term not in self.invertedList:
                     self.invertedList[term] = set()
-                self.invertedList[term].add(document.document_id)
-        self.all_docs.add(document.document_id) 
+                self.invertedList[term].add(document.document_id)  
+        self.all_docs.add(document.document_id)
         return self.invertedList
     
     def query_to_representation(self, query: str):
