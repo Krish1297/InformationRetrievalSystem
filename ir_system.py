@@ -18,7 +18,7 @@
 
 import json
 import os
-
+import re
 import cleanup
 import extraction
 import models
@@ -299,15 +299,52 @@ class InformationRetrievalSystem(object):
         retrieved_documentID = []
         for rd in retrieved_docs:
             retrieved_documentID.append((rd[1].document_id)+1)
-        # print(retrieved_documentID)
-        # print(ground_truth[query])
-        if len(retrieved_documentID) == 0:
-            return 0
-        
-        if query not in ground_truth:
-            return -1
-        releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[query]]
-        
+
+        queries = re.findall(r'\w+|[&|,-]', query)
+        releventDocumentInResult = []
+        if(len(queries)==1):   
+            query = queries[-1]
+            if query not in ground_truth:
+                return -1
+            if len(retrieved_documentID) == 0:
+                return -1
+            releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[query]]
+
+        elif(len(queries)==2):
+            sign = queries[0]
+            term = queries[1]
+            
+            if term not in ground_truth:
+                return -1
+            if len(retrieved_documentID) == 0:
+                return -1
+            releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[term]]
+            print(releventDocumentInResult)
+            
+        elif(len(queries)==3):
+            term1 = queries[0]
+            sign = queries[1]
+            term2 = queries[2]
+            if term1 not in ground_truth or term2 not in ground_truth:
+                return -1
+            if len(retrieved_documentID) == 0:
+                return -1
+            releventDocumentInResult1 = [docID for docID in retrieved_documentID if docID in ground_truth[term1]]
+           
+            releventDocumentInResult2 = [docID for docID in retrieved_documentID if docID in ground_truth[term2]]
+           
+            if sign == '&':
+                releventDocumentInResult = [docID for docID in releventDocumentInResult1 if docID in releventDocumentInResult2]
+                print(releventDocumentInResult)
+            elif sign == '|':
+                releventDocumentInResult = list(set(releventDocumentInResult1 + releventDocumentInResult2))
+                print(releventDocumentInResult)
+            elif sign == '-':        
+                releventDocumentInResult = [docID for docID in releventDocumentInResult1 if docID not in releventDocumentInResult2]
+                print(releventDocumentInResult)
+            else :
+                return -1
+            
         return len(releventDocumentInResult)/len(retrieved_documentID)
         
         # TODO: Implement this function (PR03)
@@ -329,13 +366,60 @@ class InformationRetrievalSystem(object):
         for rd in retrieved_docs:
             retrieved_documentID.append((rd[1].document_id)+1)
  
-        if query not in ground_truth:
-            return -1
-        if len(ground_truth[query]) == 0:
-            return 0
-        releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[query]]
-        
-        return len(releventDocumentInResult)/len(ground_truth[query])
+        queries = re.findall(r'\w+|[&|,-]', query)
+        releventDocumentInResult = []
+        gt_length = 0
+        if(len(queries)==1):   
+            query = queries[-1]
+            if query not in ground_truth:
+                return -1
+            if len(retrieved_documentID) == 0:
+                return -1
+            releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[query]]
+            # print(releventDocumentInResult)
+            gt_length = len(ground_truth[query])
+        elif(len(queries)==2):
+            sign = queries[0]
+            term = queries[1]
+            
+            if term not in ground_truth:
+                return -1
+            if len(retrieved_documentID) == 0:
+                return -1
+            releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[term]]
+            print(releventDocumentInResult)
+            gt_length = len(ground_truth[term])
+            
+        elif(len(queries)==3):
+            term1 = queries[0]
+            sign = queries[1]
+            term2 = queries[2]
+            if term1 not in ground_truth or term2 not in ground_truth:
+                return -1
+            if len(retrieved_documentID) == 0:
+                return -1
+            releventDocumentInResult1 = [docID for docID in retrieved_documentID if docID in ground_truth[term1]]
+           
+            releventDocumentInResult2 = [docID for docID in retrieved_documentID if docID in ground_truth[term2]]
+           
+            if sign == '&':
+                releventDocumentInResult = [docID for docID in releventDocumentInResult1 if docID in releventDocumentInResult2]
+                print(releventDocumentInResult)
+            elif sign == '|':
+                releventDocumentInResult = list(set(releventDocumentInResult1 + releventDocumentInResult2))
+                print(releventDocumentInResult)
+            elif sign == '-':        
+                releventDocumentInResult = [docID for docID in releventDocumentInResult1 if docID not in releventDocumentInResult2]
+                print(releventDocumentInResult)
+            else :
+                return -1
+            
+            gt1 = len(ground_truth[term1])
+            gt2 = len(ground_truth[term2])
+            gt_length = gt1+gt2
+            if gt_length == 0 :
+                return -1
+        return len(releventDocumentInResult)/gt_length
         # TODO: Implement this function (PR03)
         # raise NotImplementedError('To be implemented in PR03')
 
