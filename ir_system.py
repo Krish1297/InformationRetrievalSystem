@@ -286,6 +286,10 @@ class InformationRetrievalSystem(object):
     def calculate_precision(self, query: str, result_list: list[tuple]) -> float:
         ground_truth = {} 
         # print(query)
+        
+        if query.startswith("(") or query.endswith(")"):
+            query = query.replace("(", "").replace(")", "")
+        # print (query)
         with open("raw_data/ground_truth.txt","r") as file:
             for lines in file:
                 try:
@@ -299,16 +303,21 @@ class InformationRetrievalSystem(object):
         retrieved_documentID = []
         for rd in retrieved_docs:
             retrieved_documentID.append((rd[1].document_id)+1)
-
+        
         queries = re.findall(r'\w+|[&|,-]', query)
         releventDocumentInResult = []
+        
         if(len(queries)==1):   
             query = queries[-1]
             if query not in ground_truth:
                 return -1
             if len(retrieved_documentID) == 0:
                 return -1
+            # print(retrieved_documentID)
+            # print(ground_truth[query])
+            
             releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[query]]
+            # print(releventDocumentInResult)
 
         elif(len(queries)==2):
             sign = queries[0]
@@ -318,8 +327,10 @@ class InformationRetrievalSystem(object):
                 return -1
             if len(retrieved_documentID) == 0:
                 return -1
-            releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[term]]
-            print(releventDocumentInResult)
+            # print(retrieved_documentID)
+            
+            releventDocumentInResult = [docID for docID in retrieved_documentID if docID not in ground_truth[term]]
+            # print(releventDocumentInResult)
             
         elif(len(queries)==3):
             term1 = queries[0]
@@ -335,13 +346,13 @@ class InformationRetrievalSystem(object):
            
             if sign == '&':
                 releventDocumentInResult = [docID for docID in releventDocumentInResult1 if docID in releventDocumentInResult2]
-                print(releventDocumentInResult)
+                # print(releventDocumentInResult)
             elif sign == '|':
                 releventDocumentInResult = list(set(releventDocumentInResult1 + releventDocumentInResult2))
-                print(releventDocumentInResult)
+                # print(releventDocumentInResult)
             elif sign == '-':        
                 releventDocumentInResult = [docID for docID in releventDocumentInResult1 if docID not in releventDocumentInResult2]
-                print(releventDocumentInResult)
+                # print(releventDocumentInResult)
             else :
                 return -1
             
@@ -352,6 +363,9 @@ class InformationRetrievalSystem(object):
 
     def calculate_recall(self, query: str, result_list: list[tuple]) -> float:
         ground_truth = {} 
+        if query.startswith("(") or query.endswith(")"):
+            query = query.replace("(", "").replace(")", "")
+        # print (query)
         with open("raw_data/ground_truth.txt","r") as file:
             for lines in file:
                 try:
@@ -375,6 +389,8 @@ class InformationRetrievalSystem(object):
                 return -1
             if len(retrieved_documentID) == 0:
                 return -1
+            print(retrieved_documentID)
+            # print(ground_truth[query])
             releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[query]]
             # print(releventDocumentInResult)
             gt_length = len(ground_truth[query])
@@ -386,8 +402,10 @@ class InformationRetrievalSystem(object):
                 return -1
             if len(retrieved_documentID) == 0:
                 return -1
-            releventDocumentInResult = [docID for docID in retrieved_documentID if docID in ground_truth[term]]
-            print(releventDocumentInResult)
+            # print(retrieved_documentID)
+            # print(ground_truth[term])
+            releventDocumentInResult = [docID for docID in retrieved_documentID if docID not in ground_truth[term]]
+            # print(releventDocumentInResult)
             gt_length = len(ground_truth[term])
             
         elif(len(queries)==3):
@@ -401,21 +419,22 @@ class InformationRetrievalSystem(object):
             releventDocumentInResult1 = [docID for docID in retrieved_documentID if docID in ground_truth[term1]]
            
             releventDocumentInResult2 = [docID for docID in retrieved_documentID if docID in ground_truth[term2]]
-           
+            # print(retrieved_documentID)
             if sign == '&':
                 releventDocumentInResult = [docID for docID in releventDocumentInResult1 if docID in releventDocumentInResult2]
-                print(releventDocumentInResult)
+                # print(releventDocumentInResult)
             elif sign == '|':
                 releventDocumentInResult = list(set(releventDocumentInResult1 + releventDocumentInResult2))
-                print(releventDocumentInResult)
+                # print(releventDocumentInResult)
             elif sign == '-':        
                 releventDocumentInResult = [docID for docID in releventDocumentInResult1 if docID not in releventDocumentInResult2]
-                print(releventDocumentInResult)
+                # print(releventDocumentInResult)
             else :
                 return -1
             
             gt1 = len(ground_truth[term1])
             gt2 = len(ground_truth[term2])
+            
             gt_length = gt1+gt2
             if gt_length == 0 :
                 return -1
