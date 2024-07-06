@@ -229,7 +229,8 @@ class InformationRetrievalSystem(object):
         scores = [self.model.match(dr, query_representation) for dr in document_representations]
         ranked_collection = sorted(zip(scores, self.collection), key=lambda x: x[0], reverse=True)
         results = ranked_collection[:self.output_k]
-        return results
+        results1 = [(score, doc) for score, doc in ranked_collection if score == 1.0]
+        return results1
 
     def inverted_list_search(self, query: str, stemming: bool, stop_word_filtering: bool) -> list:
         """
@@ -252,9 +253,7 @@ class InformationRetrievalSystem(object):
         for doc in self.collection:
             if doc.document_id in matching_doc_ids:
                 results.append((1.0,doc))
-            else:
-                results.append((0.0,doc))
-        
+        # print(results)
         return results
         # TODO: Implement this function (PR03)
         # raise NotImplementedError('To be implemented in PR04')

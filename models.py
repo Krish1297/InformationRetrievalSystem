@@ -53,7 +53,7 @@ class LinearBooleanModel(RetrievalModel):
     vocabulary = set()
     
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
-        tokens = self.tokenize(document.title +" "+ document.raw_text)
+        tokens = [term.lower() for term in document.terms]
         if(stopword_filtering):
             new_tokens =  cleanup.remove_stop_words_from_term_list(tokens)
         else:
@@ -90,10 +90,10 @@ class InvertedListBooleanModel(RetrievalModel):
 
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
         # print(stopword_filtering)
-        terms = document.terms
-       
+        terms = [term.lower() for term in document.terms]
+
         if (stopword_filtering and stemming):
-            terms = document.filtered_terms
+            terms = [term.lower() for term in document.filtered_terms]
             stemmed_term_list = []
             for t in terms:
                 stemmed_term_list.append(porter.stem_term(t))
@@ -157,6 +157,7 @@ class InvertedListBooleanModel(RetrievalModel):
                 elif operator == '-':
                     result -= term_set
         self.invertedList = {}
+        print(result)
         return result if result is not None else set()
 
 class SignatureBasedBooleanModel(RetrievalModel):
