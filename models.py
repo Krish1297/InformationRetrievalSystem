@@ -120,9 +120,9 @@ class InvertedListBooleanModel(RetrievalModel):
         # tokens = re.findall(r'\w+|\&|\||\-|\(|\)', query)
         # return tokens
         term = Word(alphas)
-        AND = Literal("AND")
-        OR = Literal("OR")
-        NOT = Literal("NOT")
+        AND = Literal("&")
+        OR = Literal("|")
+        NOT = Literal("-")
         boolean_expr = infixNotation(term,
                                      [(NOT, 1, opAssoc.RIGHT),
                                       (AND, 2, opAssoc.LEFT),
@@ -164,7 +164,7 @@ class InvertedListBooleanModel(RetrievalModel):
             return self._eval_query(parsed_query[0])
 
         if isinstance(parsed_query, list):
-            if parsed_query[0] == 'NOT':
+            if parsed_query[0] == '-':
                 # Handle NOT operator (unary operator with only one operand)
                 term_set = self._eval_query(parsed_query[1])
                 return {doc_id: set() for doc_id in self.all_docs if doc_id not in term_set}
@@ -174,11 +174,11 @@ class InvertedListBooleanModel(RetrievalModel):
                 left = self._eval_query(parsed_query[0])  # Evaluate the left part
                 right = self._eval_query(parsed_query[2])  # Evaluate the right part
 
-                if operator == 'AND':
+                if operator == '&':
                     common_docs = left.keys() & right.keys()  # Find the common documents
                     return {doc_id: left[doc_id] & right[doc_id] for doc_id in common_docs}
 
-                elif operator == 'OR':
+                elif operator == '|':
                     all_docs = left.keys() | right.keys()  # Find all documents
                     return {doc_id: left.get(doc_id, set()) | right.get(doc_id, set()) for doc_id in all_docs}
 
@@ -189,10 +189,10 @@ class InvertedListBooleanModel(RetrievalModel):
             for i in range(1, len(parsed_query), 2):
                 operator = parsed_query[i]
                 next_query = parsed_query[i + 1]
-                if operator == 'AND':
-                    subquery_results = self._eval_query([subquery_results,'AND',next_query])
-                elif operator == 'OR':
-                    subquery_results = self._eval_query([subquery_results,'OR',next_query])
+                if operator == '&':
+                    subquery_results = self._eval_query([subquery_results,'&',next_query])
+                elif operator == '|':
+                    subquery_results = self._eval_query([subquery_results,'|',next_query])
             return subquery_results
 
         return {} 
