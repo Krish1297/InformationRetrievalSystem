@@ -2,9 +2,12 @@
 
 from abc import ABC, abstractmethod
 
+from pyparsing import infixNotation, opAssoc, Word, alphas, Literal, ParseResults
+
 from document import Document
 from collections import defaultdict
-import re 
+import re
+import json
 import cleanup
 import porter
 class RetrievalModel(ABC):
@@ -30,7 +33,7 @@ class RetrievalModel(ABC):
         # raise NotImplementedError()
 
     @abstractmethod
-    def match(self, document_representation, query_representation) -> float:
+    def match(self, document_representation, query_representation) -> float | list[float]:
         """
         Matches the query and document presentation according to the model's concept.
         :param document_representation: Data that describes one document
@@ -53,7 +56,7 @@ class LinearBooleanModel(RetrievalModel):
     vocabulary = set()
     
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
-        tokens = self.tokenize(document.title +" "+ document.raw_text)
+        tokens = [term.lower() for term in document.terms]
         if(stopword_filtering):
             new_tokens =  cleanup.remove_stop_words_from_term_list(tokens)
         else:
@@ -90,7 +93,7 @@ class InvertedListBooleanModel(RetrievalModel):
 
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
         # print(stopword_filtering)
-        terms = document.terms
+        terms = [term.lower() for term in document.terms]
        
         if (stopword_filtering and stemming):
             terms = document.filtered_terms
@@ -113,52 +116,90 @@ class InvertedListBooleanModel(RetrievalModel):
         return self.invertedList
     
     def query_to_representation(self, query: str):
-        query = query.lower()
-        tokens = re.findall(r'\w+|\&|\||\-|\(|\)', query)
-        return tokens
+        # query = query.lower()
+        # tokens = re.findall(r'\w+|\&|\||\-|\(|\)', query)
+        # return tokens
+        term = Word(alphas)
+        AND = Literal("AND")
+        OR = Literal("OR")
+        NOT = Literal("NOT")
+        boolean_expr = infixNotation(term,
+                                     [(NOT, 1, opAssoc.RIGHT),
+                                      (AND, 2, opAssoc.LEFT),
+                                      (OR, 2, opAssoc.LEFT)])
+        parsed_query = boolean_expr.parseString(query, parseAll=True)
+        return parsed_query
+       
+    def match(self, document_representation, query_representation) -> float | list[float]:
 
-    def match(self, document_representation, query_representation) -> float:
-        result = None
-        operator = None
-        term_set = None
-        nested_expression = []
-        for token in query_representation:
-            if token == '(':
-                nested_expression.append((result, operator))
-                result = None
-                operator = None
-            elif token == ')':
-                nested_result, nested_operator = nested_expression.pop()
-                if nested_result is not None:
-                    if result is None:
-                        result = nested_result
-                    elif nested_operator == '&':
-                        result &= nested_result
-                    elif nested_operator == '|':
-                        result |= nested_result
-                    elif nested_operator == '-':
-                        result -= nested_result
-            elif token in {'&', '|', '-'}:
-                operator = token
-                # print(operator)
-            else:
-                term_set = self.invertedList.get(token, set())
-                
-                if operator == '-' and result == None:
-                    term_set = self.all_docs - term_set 
-                    operator = None
-                        
-                if result is None:
-                    result = term_set
-                elif operator == '&':
-                    result &= term_set
-                elif operator == '|':
-                    result |= term_set
-                elif operator == '-':
-                    result -= term_set
-        self.invertedList = {}
-        return result if result is not None else set()
+        relevant_docs = self._eval_query(query_representation)
+        # # Calculate similarity score as the number of matching terms
+        # print(relevant_docs)
+        relevent_docsID = [key for key,values in relevant_docs.items()]
+        relevent_docsID = sorted(relevent_docsID)
+        
+        with open('data/my_collection.json', 'r') as json_file:
+            json_collection = json.load(json_file)
+            collection = []
+        for doc_dict in json_collection:
+            document = Document()
+            document.document_id = doc_dict.get('document_id')
+            collection.append(document.document_id)
 
+        result = [1.0 if doc_id in relevent_docsID else 0.0 for doc_id in collection]
+        return result
+    
+    
+    def _eval_query(self, parsed_query):
+        if isinstance(parsed_query, ParseResults):
+            parsed_query = parsed_query.asList()  # Convert ParseResults to a list
+        if isinstance(parsed_query, dict):
+        # Skip the whole process if parsed_query is a dictionary
+            return parsed_query
+        if isinstance(parsed_query, str):
+            # Base case: if parsed_query is a string (term), return the set of documents containing that term
+            return {doc_id: {parsed_query} for doc_id in self.invertedList.get(parsed_query, set())}
+
+        if isinstance(parsed_query, list) and len(parsed_query) == 1:
+            # Single term in a list
+            return self._eval_query(parsed_query[0])
+
+        if isinstance(parsed_query, list):
+            if parsed_query[0] == 'NOT':
+                # Handle NOT operator (unary operator with only one operand)
+                term_set = self._eval_query(parsed_query[1])
+                return {doc_id: set() for doc_id in self.all_docs if doc_id not in term_set}
+
+            if len(parsed_query) == 3:
+                operator = parsed_query[1]  # The operator is at the second position
+                left = self._eval_query(parsed_query[0])  # Evaluate the left part
+                right = self._eval_query(parsed_query[2])  # Evaluate the right part
+
+                if operator == 'AND':
+                    common_docs = left.keys() & right.keys()  # Find the common documents
+                    return {doc_id: left[doc_id] & right[doc_id] for doc_id in common_docs}
+
+                elif operator == 'OR':
+                    all_docs = left.keys() | right.keys()  # Find all documents
+                    return {doc_id: left.get(doc_id, set()) | right.get(doc_id, set()) for doc_id in all_docs}
+
+        # Handle complex nested structures recursively
+        if isinstance(parsed_query, list) and len(parsed_query) > 3:
+            # Evaluate nested subqueries
+            subquery_results = parsed_query[0]
+            for i in range(1, len(parsed_query), 2):
+                operator = parsed_query[i]
+                next_query = parsed_query[i + 1]
+                if operator == 'AND':
+                    subquery_results = self._eval_query([subquery_results,'AND',next_query])
+                elif operator == 'OR':
+                    subquery_results = self._eval_query([subquery_results,'OR',next_query])
+            return subquery_results
+
+        return {} 
+
+        
+        
 class SignatureBasedBooleanModel(RetrievalModel):
     # TODO: Implement all abstract methods. (PR04)
     def __init__(self):
