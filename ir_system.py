@@ -228,7 +228,6 @@ class InformationRetrievalSystem(object):
                                     for d in self.collection]
         scores = [self.model.match(dr, query_representation) for dr in document_representations]
         ranked_collection = sorted(zip(scores, self.collection), key=lambda x: x[0], reverse=True)
-        # results = ranked_collection[:self.output_k]
         results1 = [(score, doc) for score, doc in ranked_collection if score == 1.0]
         return results1
 
@@ -249,7 +248,6 @@ class InformationRetrievalSystem(object):
         matching_docs = self.model.match(None, query_representation)
         # print(matching_doc_ids)
         ranked_collection = sorted(zip(matching_docs, self.collection), key=lambda x: x[0], reverse=True)
-        # results = ranked_collection[:self.output_k]
         results = [(score, doc) for score, doc in ranked_collection if score == 1.0]
         return results
         # TODO: Implement this function (PR03)
