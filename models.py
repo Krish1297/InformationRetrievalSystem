@@ -168,7 +168,7 @@ class InvertedListBooleanModel(RetrievalModel):
         terms = [term.lower() for term in document.terms]
        
         if (stopword_filtering and stemming):
-            terms = document.filtered_terms
+            terms = [term.lower() for term in document.filtered_terms]
             stemmed_term_list = []
             for t in terms:
                 stemmed_term_list.append(porter.stem_term(t))
@@ -202,8 +202,7 @@ class InvertedListBooleanModel(RetrievalModel):
     def match(self, document_representation, query_representation) -> float | list[float]:
 
         relevant_docs = self._eval_query(query_representation)
-        # # Calculate similarity score as the number of matching terms
-        # print(relevant_docs)
+
         relevent_docsID = [key for key,values in relevant_docs.items()]
         relevent_docsID = sorted(relevent_docsID)
         

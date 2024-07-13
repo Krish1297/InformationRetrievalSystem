@@ -128,7 +128,7 @@ class InformationRetrievalSystem(object):
                 print(f'recall: {self.calculate_recall(query, results)}')
                 
                 print(f"Time taken for query processing: {self.elapsed_time_ms:.2f} ms")
-
+            
             elif action_choice == CHOICE_EXTRACT:
                 # Extract document collection from text file.
 
@@ -256,7 +256,8 @@ class InformationRetrievalSystem(object):
         self.end_time = time.time()
         self.elapsed_time_ms = (self.end_time - self.start_time) * 1000
         ranked_collection = sorted(zip(matching_docs, self.collection), key=lambda x: x[0], reverse=True)
-        results = [(1.0, doc) for score, doc in ranked_collection if score == 1.0]
+        # results = ranked_collection[:self.output_k]
+        results = [(score, doc) for score, doc in ranked_collection if score == 1.0]
         return results
         # TODO: Implement this function (PR03)
         # raise NotImplementedError('To be implemented in PR04')
