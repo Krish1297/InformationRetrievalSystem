@@ -168,7 +168,7 @@ class InvertedListBooleanModel(RetrievalModel):
         terms = [term.lower() for term in document.terms]
        
         if (stopword_filtering and stemming):
-            terms = [term.lower() for term in document.filtered_terms]
+            terms = document.filtered_terms
             stemmed_term_list = []
             for t in terms:
                 stemmed_term_list.append(porter.stem_term(t))
@@ -202,7 +202,8 @@ class InvertedListBooleanModel(RetrievalModel):
     def match(self, document_representation, query_representation) -> float | list[float]:
 
         relevant_docs = self._eval_query(query_representation)
-
+        # # Calculate similarity score as the number of matching terms
+        # print(relevant_docs)
         relevent_docsID = [key for key,values in relevant_docs.items()]
         relevent_docsID = sorted(relevent_docsID)
         
@@ -270,9 +271,9 @@ class InvertedListBooleanModel(RetrievalModel):
         
 class SignatureBasedBooleanModel(RetrievalModel):
     # TODO: Implement all abstract methods. (PR04)
-    # TODO: Implement all abstract methods. (PR04)
+    # TODO: Remove this line and implement the function.
     def __init__(self):
-        self.all_docs = set() # TODO: Remove this line and implement the function.
+        self.all_docs = set() 
         self.signatures_dict = {}
         self.block_signatures = {}
         self.query=""
@@ -281,7 +282,7 @@ class SignatureBasedBooleanModel(RetrievalModel):
     
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
         D=4
-        # terms = document.terms
+        
         terms = [term.lower() for term in document.terms]
         if (stopword_filtering and stemming):
             terms = document.filtered_terms
@@ -296,7 +297,7 @@ class SignatureBasedBooleanModel(RetrievalModel):
 
         for idx, term in enumerate(terms):
             if term not in self.signatures_dict:
-                # word_position = idx + 1
+                
                 hash_values = self.compute_hash(term)
                 signature = self.create_signature_vector(hash_values)
                 self.signatures_dict[term] = signature
@@ -307,22 +308,9 @@ class SignatureBasedBooleanModel(RetrievalModel):
                 block_signature = np.bitwise_or(block_signature, self.signatures_dict[term])
             self.block_signatures[f"{document.document_id}_{block_terms}"] = (block_signature)
             
-        # self.all_docs.add(document.doc_id)
         return self.block_signatures
         
     def compute_hash(self,term):
-        # F = 64  # Number of bits in the signature
-        # m = 16  # Increased number of hash functions
-
-        # # New set of primes
-        # primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53]
-        # hash_values = np.zeros(m, dtype=int)  # Initialize hash values for b hash functions
-        
-        # # Iterate over hash functions
-        # for i in range(m):
-            
-        #         hash_values[i] = ((hash_values[i] + word_position) * primes[i]) % F
-
         F = 64  
         m = 8
 
@@ -337,16 +325,11 @@ class SignatureBasedBooleanModel(RetrievalModel):
             for char in term:
                 hash_values[i] = (hash_values[i] + ord(char)) * primes[i] 
                 hash_values[i]=hash_values[i]% F
-            # hash_values[i] = ((hash_values[i] + word_position) * primes[i]) % F
-            # hash_values[i] = (word_position * primes[i]) % F
-        # hash_values = np.unique(hash_values)  
-        # while(len(hash_values)<m):
-        #     print(term)
+
         primes=[23, 29, 31, 37, 41, 43, 47, 53]
         hash_values = np.unique(hash_values) 
         i=0; 
         while len(hash_values) < m and i<m: 
-            # print(term)
             for char in term: 
                 new_hash = (hash_values[-1] + ord(char))* primes[i]
                 new_hash=new_hash % F
@@ -360,19 +343,9 @@ class SignatureBasedBooleanModel(RetrievalModel):
     def create_signature_vector(self,hash_values):
         F = 64 
         signature = np.zeros(F, dtype=int)  
-        
-        
         for hash_value in hash_values:
-            
             signature[hash_value] = 1
-        
         return signature
-    # def create_text_blocks(self, terms, block_size):
-    #     text_blocks = []
-    #     for i in range(len(terms) - block_size + 1):
-    #         block = terms[i:i + block_size]
-    #         text_blocks.append(block)
-    #     return text_blocks
 
     def query_to_representation(self, query: str):
         terms = query.split()
@@ -396,57 +369,36 @@ class SignatureBasedBooleanModel(RetrievalModel):
         parsed_query = boolean_expr.parseString(query, parseAll=True)
         return parsed_query
 
-    def match(self, document_representation, query_representation) -> float:
-        matching_blocks = {}
+    def match(self, document_representation, query_representation) -> float | list[float]:
         result=[]
+        list_ids=[]
         unique_ids=set()
         parsed_query=self.parse_query(self.query)
         unique_ids=self._eval_query(parsed_query)
-        print(unique_ids.keys())
         for ids in unique_ids.keys():
-            result.append(ids)
-        # for text_blocks, block_signature in document_representation.items():
-        #     if np.array_equal(np.bitwise_and(block_signature, query_representation), query_representation):
-        #         matching_blocks[text_blocks] = block_signature
-        # # for block_id, block_signature in matching_blocks.items():
-        # #     is_match = True
-        # #     for bit_index, bit_value in enumerate(query_representation):
-        # #         if bit_value == 1 and block_signature[bit_index] != 1:
-        # #             is_match = False
-        # #             continue
-        # #     if is_match:
-        # #         result.append(block_id)
-        # #     print(result)
-        # for query,signatures in self.signatures_dict.items():
-        #     if np.array_equal(query_representation,signatures):
-        #         result.append(query)
-        # for query in result:
-        #     for key, value in matching_blocks.items():
-        
-        #         if query in key:
-        
-        #             match = re.match(r'(\d+)_', key)
-        #             if match:
-        #                 unique_ids.add(int(match.group(1)))
-        # print(unique_ids)
+            list_ids.append(ids)
+        with open('data/my_collection.json', 'r') as json_file:
+            json_collection = json.load(json_file)
+            collection = []
+        for doc_dict in json_collection:
+            document = Document()
+            document.document_id = doc_dict.get('document_id')
+            collection.append(document.document_id)
+
+        result = [1.0 if doc_id in list_ids else 0.0 for doc_id in collection]
         return result
+        
     def _eval_query(self, parsed_query):
         if isinstance(parsed_query, ParseResults):
-            parsed_query = parsed_query.asList()  # Convert ParseResults to a list
-            print(f"Converted ParseResults to list: {parsed_query}")
+            parsed_query = parsed_query.asList()  
             
         if isinstance(parsed_query, dict):
-            # Skip the whole process if parsed_query is a dictionary
-            print(f"Returning parsed query as dict: {parsed_query}")
             return parsed_query
         
         if isinstance(parsed_query, str):
             matching_blocks = {}
-            result=[]
             unique_ids={}
             query_representation=self.query_to_representation(parsed_query)
-            # Base case: if parsed_query is a string (term), return the set of block signatures containing that term
-            print(f"Evaluating term: {parsed_query}")
             if parsed_query in self.signatures_dict:
                 for text_blocks, block_signature in self.block_signatures.items():
                     if np.array_equal(np.bitwise_and(block_signature, query_representation), query_representation):
@@ -461,50 +413,29 @@ class SignatureBasedBooleanModel(RetrievalModel):
             return unique_ids
             
         if isinstance(parsed_query, list) and len(parsed_query) == 1:
-            # Single term in a list
-            print(f"Single term list: {parsed_query}")
             return self._eval_query(parsed_query[0])
-        
-        # if isinstance(parsed_query, list):
-        #     if parsed_query[0] == '-':
-        #         term_set = self._eval_query(parsed_query[1])
-        #         with open('data/my_collection.json', 'r') as json_file:
-        #             json_collection = json.load(json_file)
-        #             collection = []
-        #         for doc_dict in json_collection:
-        #             document = Document()
-        #             document.document_id = doc_dict.get('document_id')
-        #             collection.append(document.document_id)
-                    
-        #         # Handle NOT operator (unary operator with only one operand)
-        #         return {doc_id: set() for doc_id in collection if doc_id not in term_set}
             
         if len(parsed_query) == 3:
-                operator = parsed_query[1]  # The operator is at the second position
-                left = self._eval_query(parsed_query[0])  # Evaluate the left part
-                right = self._eval_query(parsed_query[2])  # Evaluate the right part
-                print(f"Evaluating: {parsed_query[0]} {operator} {parsed_query[2]}")
+                operator = parsed_query[1]  
+                left = self._eval_query(parsed_query[0])  
+                right = self._eval_query(parsed_query[2]) 
                 
                 if operator == '&':
-                    # Perform AND operation
-                    common_docs = left.keys() & right.keys()  # Find the common documents
+                    common_docs = left.keys() & right.keys() 
                     
                     return {doc_id: np.bitwise_and(left[doc_id], right[doc_id]) for doc_id in common_docs}
                 
                 elif operator == '|':
-                    # Perform OR operation
-                    all_docs = left.keys() | right.keys()  # Find all documents
+                    all_docs = left.keys() | right.keys() 
                     return {doc_id: np.bitwise_or(left.get(doc_id, np.zeros(64, dtype=int)), 
                                                 right.get(doc_id, np.zeros(64, dtype=int))) for doc_id in all_docs}
 
-        # Handle complex nested structures recursively
+        
         if isinstance(parsed_query, list) and len(parsed_query) > 3:
-            # Evaluate nested subqueries
             subquery_results = parsed_query[0]
             for i in range(1, len(parsed_query), 2):
                 operator = parsed_query[i]
                 next_query = parsed_query[i + 1]
-                print(f"Evaluating nested structure: {subquery_results} {operator} {next_query}")
                 if operator == '&':
                     subquery_results = self._eval_query([subquery_results, '&', next_query])
                 elif operator == '|':

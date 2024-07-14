@@ -299,13 +299,12 @@ class InformationRetrievalSystem(object):
                                     for d in self.collection]
         query_representation = self.model.query_to_representation(query)
         self.start_time = time.time()
-        scores = [self.model.match(document_representations, query_representation)]
-                #   for dr in document_representations]
+        scores = self.model.match(document_representations, query_representation)
         self.end_time = time.time()
         self.elapsed_time_ms = (self.end_time - self.start_time) * 1000
         ranked_collection = sorted(zip(scores, self.collection), key=lambda x: x[0], reverse=True)
-        results = ranked_collection
-        return results
+        results1 = [(1.0, doc) for score, doc in ranked_collection if score == 1.0]
+        return results1
         # TODO: Implement this function (PR04)
         # raise NotImplementedError('To be implemented in PR04')
 
