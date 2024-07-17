@@ -246,7 +246,6 @@ class InformationRetrievalSystem(object):
         :return: List of tuples, where the first element is the relevance score and the second the corresponding
         document
         """
-        # if not self.model.invertedList:
         for doc in self.collection:
             self.model.document_to_representation(doc, stop_word_filtering, stemming)
 
@@ -271,17 +270,37 @@ class InformationRetrievalSystem(object):
         :return: List of tuples, where the first element is the relevance score and the second the corresponding
         document
         """
-        query_representation = self.model.query_to_representation(query)
+        
+        self.start_time = time.time()
         document_representations = [self.model.document_to_representation(d, stop_word_filtering, stemming)
                                     for d in self.collection]
-        self.start_time = time.time()
+        query_representation = self.model.query_to_representation(query)
+        
         scores = [self.model.match(dr, query_representation) for dr in document_representations]
+        
+        ranked_collection = list(zip(scores, self.collection))
+    
+        auxillary = [(score, doc) for score, doc in ranked_collection if score > 0]
+        gamma = 9
+        sorted_aux = sorted(auxillary, reverse=True, key=lambda x: x[0])
+        
+        top_docs = sorted_aux[:gamma+1]
+        
+        if len(sorted_aux) > gamma+1:
+            max_remaining_weight = max(score for score, document in sorted_aux[gamma+1:])
+            n = len([score for score, document in sorted_aux if score > max_remaining_weight])
+        
+            if n < gamma+1:
+                for i in range(gamma+1, len(sorted_aux)):
+                    if sorted_aux[i][0] + max_remaining_weight <= top_docs[-1][0]:
+                        break
+                    top_docs.append(sorted_aux[i])
+                    top_docs.sort(key=lambda x: x[0], reverse=True)
+                    top_docs = top_docs[:gamma+1]
         self.end_time = time.time()
         self.elapsed_time_ms = (self.end_time - self.start_time) * 1000
-        ranked_collection = sorted(zip(scores, self.collection), key=lambda x: x[0], reverse=True)
-        # results = ranked_collection[:self.output_k]
-        results1 = [(score, doc) for score, doc in ranked_collection if score == 1.0]
-        return results1
+        return top_docs
+
         
         # TODO: Implement this function (PR04)
         # raise NotImplementedError('To be implemented in PR04')
@@ -295,10 +314,10 @@ class InformationRetrievalSystem(object):
         :return: List of tuples, where the first element is the relevance score and the second the corresponding
         document
         """
+        self.start_time = time.time()
         document_representations = [self.model.document_to_representation(d, stop_word_filtering, stemming)
                                     for d in self.collection]
         query_representation = self.model.query_to_representation(query)
-        self.start_time = time.time()
         scores = self.model.match(document_representations, query_representation)
         self.end_time = time.time()
         self.elapsed_time_ms = (self.end_time - self.start_time) * 1000
@@ -307,57 +326,110 @@ class InformationRetrievalSystem(object):
         return results1
         # TODO: Implement this function (PR04)
         # raise NotImplementedError('To be implemented in PR04')
-
+        
     def calculate_precision(self, query: str, result_list: list[tuple]) -> float:
-        term = Word(alphas)
-        AND = Literal("&")
-        OR = Literal("|")
-        NOT = Literal("-")
-        boolean_expr = infixNotation(term,
-                                     [(NOT, 1, opAssoc.RIGHT),
-                                      (AND, 2, opAssoc.LEFT),
-                                      (OR, 2, opAssoc.LEFT)])
-        parsed_query = boolean_expr.parseString(query, parseAll=True)
+        if not isinstance(self.model, models.VectorSpaceModel):
+            term = Word(alphas)
+            AND = Literal("&")
+            OR = Literal("|")
+            NOT = Literal("-")
+            boolean_expr = infixNotation(term,
+                                        [(NOT, 1, opAssoc.RIGHT),
+                                        (AND, 2, opAssoc.LEFT),
+                                        (OR, 2, opAssoc.LEFT)])
+            parsed_query = boolean_expr.parseString(query, parseAll=True)
+            
+            ground_truth = {}    
+            with open("raw_data/ground_truth.txt","r") as file:
+                for lines in file:
+                    try:
+                        term, ids = lines.split(' - ')
+                        doc_id_list = list(map(int, ids.strip().split(', ')))
+                        ground_truth[term.strip()] = doc_id_list
+                    except ValueError as e:
+                        pass
+            
+            
+            
+            relevant_docsID = []
+            relevant_docs = self.eval_query(parsed_query,ground_truth)
+            if relevant_docs == -1:
+                return -1
+            for key in relevant_docs.keys():
+                relevant_docsID.append(key)
+            relevant_docsID = sorted(relevant_docsID)
+            
+            # print ("relevent docs after querying in the ground truth")
+            # print(relevant_docsID)
+            
+            retrieved_docs = [t for t in result_list if t[0] == 1.0]
+            retrieved_documentID = []
+            for rd in retrieved_docs:
+                retrieved_documentID.append((rd[1].document_id)+1)
+            relevant_docs_retrieved = list(set(relevant_docs) & set(retrieved_documentID))
+            
+            # print("\ntotal documents retreived doc id for denominator")
+            # print(retrieved_documentID)
+            
+            if (len(relevant_docs_retrieved) == 0 or len(retrieved_documentID) == 0):
+                return -1
+            return len(relevant_docs_retrieved)/len(retrieved_documentID)
+            
+            # TODO: Implement this function (PR03)
+            # raise NotImplementedError('To be implemented in PR03')
         
-        ground_truth = {}    
-        with open("raw_data/ground_truth.txt","r") as file:
-            for lines in file:
-                try:
-                    term, ids = lines.split(' - ')
-                    doc_id_list = list(map(int, ids.strip().split(', ')))
-                    ground_truth[term.strip()] = doc_id_list
-                except ValueError as e:
-                    pass
+        else:
+            ground_truth = {}    
+            with open("raw_data/ground_truth.txt","r") as file:
+                for lines in file:
+                    try:
+                        term, ids = lines.split(' - ')
+                        doc_id_list = list(map(int, ids.strip().split(', ')))
+                        ground_truth[term.strip()] = doc_id_list
+                    except ValueError as e:
+                        pass
+            
+            relevant_docsID = []
+            
+            # print ("relevent docs after querying in the ground truth")
+            relevant_docs = self.eval_query_vector(query,ground_truth)
+            # print(relevant_docs)
+            if relevant_docs == -1:
+                return -1
+            
+            retrieved_docs = [t for t in result_list if t[0] > 0]
+            retrieved_documentID = []
+            for rd in retrieved_docs:
+                retrieved_documentID.append((rd[1].document_id)+1)
+            
+            # print("\ntotal documents retreived doc id for denominator")
+            # print(sorted(retrieved_documentID))
+            relevant_docs_retrieved = list(set(relevant_docs) & set(retrieved_documentID))
+            # print(sorted(relevant_docs_retrieved))
+            
+            if (len(relevant_docs_retrieved) == 0 or len(retrieved_documentID) == 0):
+                return -1
+            
+            return len(relevant_docs_retrieved)/len(retrieved_documentID)
         
-        relevant_docsID = []
-        relevant_docs = self._eval_query(parsed_query,ground_truth)
-        if relevant_docs == -1:
-            return -1
-        for key in relevant_docs.keys():
-            relevant_docsID.append(key)
-        relevant_docsID = sorted(relevant_docsID)
-        
-        print ("relevent docs after querying in the ground truth")
-        print(relevant_docsID)
-        
-        retrieved_docs = [t for t in result_list if t[0] == 1.0]
-        retrieved_documentID = []
-        for rd in retrieved_docs:
-            retrieved_documentID.append((rd[1].document_id)+1)
-        relevant_docs_retrieved = list(set(relevant_docs) & set(retrieved_documentID))
-        
-        print("\ntotal documents retreived doc id for denominator")
-        print(retrieved_documentID)
-        
-        if (len(relevant_docs_retrieved) == 0 or len(retrieved_documentID) == 0):
-            return -1
-        return len(relevant_docs_retrieved)/len(retrieved_documentID)
-        
-        # TODO: Implement this function (PR03)
-        # raise NotImplementedError('To be implemented in PR03')
+            # return 0
 
+    def eval_query_vector(self, query, ground_truth):
+        parsed_query = query.split(" ")
+        # print(parsed_query)
+        
+        result_set = set() 
+        
+        for pq in parsed_query:
+            if pq in ground_truth.keys():
+                # print(ground_truth[pq])
+                result_set.update(ground_truth[pq])  
+            else:
+                return -1
+        # print(list(result_set)) 
+        return list(result_set)
     
-    def _eval_query(self, parsed_query,ground_truth):
+    def eval_query(self, parsed_query,ground_truth):
         
         if isinstance(parsed_query, ParseResults):
             parsed_query = parsed_query.asList()  # Convert ParseResults to a list
@@ -370,11 +442,11 @@ class InformationRetrievalSystem(object):
                 return {doc_id: {parsed_query} for doc_id in ground_truth.get(parsed_query, set())}
 
         if isinstance(parsed_query, list) and len(parsed_query) == 1:
-            return self._eval_query(parsed_query[0],ground_truth)
+            return self.eval_query(parsed_query[0],ground_truth)
 
         if isinstance(parsed_query, list):
             if parsed_query[0] == '-':
-                term_set = self._eval_query(parsed_query[1],ground_truth)
+                term_set = self.eval_query(parsed_query[1],ground_truth)
                 if (term_set == -1):
                     return -1
                 with open('data/my_collection.json', 'r') as json_file:
@@ -389,8 +461,8 @@ class InformationRetrievalSystem(object):
 
             if len(parsed_query) == 3:
                 operator = parsed_query[1]  # The operator is at the second position
-                left = self._eval_query(parsed_query[0],ground_truth)  # Evaluate the left part
-                right = self._eval_query(parsed_query[2],ground_truth)  # Evaluate the right part
+                left = self.eval_query(parsed_query[0],ground_truth)  # Evaluate the left part
+                right = self.eval_query(parsed_query[2],ground_truth)  # Evaluate the right part
 
                 if(left == -1 or right == -1):
                     return -1
@@ -411,53 +483,85 @@ class InformationRetrievalSystem(object):
                 operator = parsed_query[i]
                 next_query = parsed_query[i + 1]
                 if operator == '&':
-                    subquery_results = self._eval_query([subquery_results,'AND',next_query],ground_truth)
+                    subquery_results = self.eval_query([subquery_results,'AND',next_query],ground_truth)
                 elif operator == '|':
-                    subquery_results = self._eval_query([subquery_results,'OR',next_query],ground_truth)
+                    subquery_results = self.eval_query([subquery_results,'OR',next_query],ground_truth)
             return subquery_results
 
         return {} 
 
     
     def calculate_recall(self, query: str, result_list: list[tuple]) -> float:
-        term = Word(alphas)
-        AND = Literal("&")
-        OR = Literal("|")
-        NOT = Literal("-")
-        boolean_expr = infixNotation(term,
-                                     [(NOT, 1, opAssoc.RIGHT),
-                                      (AND, 2, opAssoc.LEFT),
-                                      (OR, 2, opAssoc.LEFT)])
-        parsed_query = boolean_expr.parseString(query, parseAll=True)
+        if not isinstance(self.model, models.VectorSpaceModel):
         
-        ground_truth = {}    
-        with open("raw_data/ground_truth.txt","r") as file:
-            for lines in file:
-                try:
-                    term, ids = lines.split(' - ')
-                    doc_id_list = list(map(int, ids.strip().split(', ')))
-                    ground_truth[term.strip()] = doc_id_list
-                except ValueError as e:
-                    pass
-        
-        relevant_docsID = []
-        relevant_docs = self._eval_query(parsed_query,ground_truth)
-        if relevant_docs == -1:
-            return -1
-        for key in relevant_docs.keys():
-            relevant_docsID.append(key)
-        relevant_docsID = sorted(relevant_docsID)
-        
-        retrieved_docs = [t for t in result_list if t[0] == 1.0]
-        retrieved_documentID = []
-        for rd in retrieved_docs:
-            retrieved_documentID.append((rd[1].document_id)+1)
-        relevant_docs_retrieved = list(set(relevant_docs) & set(retrieved_documentID))
+            term = Word(alphas)
+            AND = Literal("&")
+            OR = Literal("|")
+            NOT = Literal("-")
+            boolean_expr = infixNotation(term,
+                                        [(NOT, 1, opAssoc.RIGHT),
+                                        (AND, 2, opAssoc.LEFT),
+                                        (OR, 2, opAssoc.LEFT)])
+            parsed_query = boolean_expr.parseString(query, parseAll=True)
+            
+            ground_truth = {}    
+            with open("raw_data/ground_truth.txt","r") as file:
+                for lines in file:
+                    try:
+                        term, ids = lines.split(' - ')
+                        doc_id_list = list(map(int, ids.strip().split(', ')))
+                        ground_truth[term.strip()] = doc_id_list
+                    except ValueError as e:
+                        pass
+            
+            relevant_docsID = []
+            relevant_docs = self.eval_query(parsed_query,ground_truth)
+            if relevant_docs == -1:
+                return -1
+            for key in relevant_docs.keys():
+                relevant_docsID.append(key)
+            relevant_docsID = sorted(relevant_docsID)
+            
+            retrieved_docs = [t for t in result_list if t[0] == 1.0]
+            retrieved_documentID = []
+            for rd in retrieved_docs:
+                retrieved_documentID.append((rd[1].document_id)+1)
+            relevant_docs_retrieved = list(set(relevant_docs) & set(retrieved_documentID))
 
+            
+            if (len(relevant_docs_retrieved) == 0 or len(retrieved_documentID) == 0):
+                return -1
+            return len(relevant_docs_retrieved)/len(relevant_docs)
+        else: 
+            ground_truth = {}    
+            with open("raw_data/ground_truth.txt","r") as file:
+                for lines in file:
+                    try:
+                        term, ids = lines.split(' - ')
+                        doc_id_list = list(map(int, ids.strip().split(', ')))
+                        ground_truth[term.strip()] = doc_id_list
+                    except ValueError as e:
+                        pass
+            
+            relevant_docsID = []
+            
+            # print ("relevent docs after querying in the ground truth")
+            relevant_docs = self.eval_query_vector(query,ground_truth)
+            if relevant_docs == -1:
+                return -1
+            
+            retrieved_docs = [t for t in result_list if t[0] > 0]
+            retrieved_documentID = []
+            for rd in retrieved_docs:
+                retrieved_documentID.append((rd[1].document_id)+1)
+            
+            relevant_docs_retrieved = list(set(relevant_docs) & set(retrieved_documentID))
+            
+            if (len(relevant_docs_retrieved) == 0 or len(retrieved_documentID) == 0):
+                return -1
+
+            return len(relevant_docs_retrieved)/len(relevant_docs)
         
-        if (len(relevant_docs_retrieved) == 0 or len(retrieved_documentID) == 0):
-            return -1
-        return len(relevant_docs_retrieved)/len(relevant_docs)
         # TODO: Implement this function (PR03)
         # raise NotImplementedError('To be implemented in PR03')
 

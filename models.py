@@ -10,6 +10,7 @@ import re
 import json
 import cleanup
 import porter
+import math
 import numpy as np
 class RetrievalModel(ABC):
     @abstractmethod
@@ -86,8 +87,7 @@ class LinearBooleanModel(RetrievalModel):
         return parsed_query
 
     def match(self, document_representation, query_representation) -> float:
-        relevant_docs = self._eval_query(query_representation, document_representation)
-        # print(relevant_docs)
+        relevant_docs = self.eval_query(query_representation, document_representation)
         with open('data/my_collection.json', 'r') as json_file:
             json_collection = json.load(json_file)
             collection = [doc_dict.get('document_id') for doc_dict in json_collection]
@@ -96,7 +96,7 @@ class LinearBooleanModel(RetrievalModel):
         return float(sum(result))
     
     
-    def _eval_query(self, parsed_query,document_representation):
+    def eval_query(self, parsed_query,document_representation):
         if isinstance(parsed_query, ParseResults):
             parsed_query = parsed_query.asList()  
         if isinstance(parsed_query, dict):
@@ -109,38 +109,38 @@ class LinearBooleanModel(RetrievalModel):
             return result
         
         if isinstance(parsed_query, list) and len(parsed_query) == 1:
-            # Single term in a list
-            return self._eval_query(parsed_query[0],document_representation)
+            return self.eval_query(parsed_query[0],document_representation)
 
         if isinstance(parsed_query, list):
             if parsed_query[0] == '-':
-                term_set = self._eval_query(parsed_query[1], document_representation)
+                term_set = self.eval_query(parsed_query[1], document_representation)
                 all_docs_set = set(document_representation.keys())
                 return all_docs_set - term_set
             
             if len(parsed_query) == 3:
-                operator = parsed_query[1]  # The operator is at the second position
+                operator = parsed_query[1]  
                 
-                left = self._eval_query(parsed_query[0],document_representation)
-                right = self._eval_query(parsed_query[2],document_representation)
+                left = self.eval_query(parsed_query[0],document_representation)
+                right = self.eval_query(parsed_query[2],document_representation)
 
                 if operator == '&':
-                    # print(left & right)
+                
                     return left & right
                 elif operator == '|':
                     return left | right
-
-        # Handle complex nested structures recursively
+                elif operator == '-':
+                    return left - right
+        
         if isinstance(parsed_query, list) and len(parsed_query) > 3:
-            # Evaluate nested subqueries
+        
             subquery_results = parsed_query[0]
             for i in range(1, len(parsed_query), 2):
                 operator = parsed_query[i]
                 next_query = parsed_query[i + 1]
                 if operator == '&':
-                    subquery_results = self._eval_query([subquery_results,'&',next_query],document_representation)
+                    subquery_results = self.eval_query([subquery_results,'&',next_query],document_representation)
                 elif operator == '|':
-                    subquery_results = self._eval_query([subquery_results,'|',next_query],document_representation)
+                    subquery_results = self.eval_query([subquery_results,'|',next_query],document_representation)
             return subquery_results
 
         return {}  
@@ -164,7 +164,7 @@ class InvertedListBooleanModel(RetrievalModel):
         return 'Boolean Model (Inverted List)'
 
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
-        # print(stopword_filtering)
+    
         terms = [term.lower() for term in document.terms]
        
         if (stopword_filtering and stemming):
@@ -201,9 +201,7 @@ class InvertedListBooleanModel(RetrievalModel):
        
     def match(self, document_representation, query_representation) -> float | list[float]:
 
-        relevant_docs = self._eval_query(query_representation)
-        # # Calculate similarity score as the number of matching terms
-        # print(relevant_docs)
+        relevant_docs = self.eval_query(query_representation)
         relevent_docsID = [key for key,values in relevant_docs.items()]
         relevent_docsID = sorted(relevent_docsID)
         
@@ -219,50 +217,45 @@ class InvertedListBooleanModel(RetrievalModel):
         return result
     
     
-    def _eval_query(self, parsed_query):
+    def eval_query(self, parsed_query):
         if isinstance(parsed_query, ParseResults):
-            parsed_query = parsed_query.asList()  # Convert ParseResults to a list
+            parsed_query = parsed_query.asList()  
         if isinstance(parsed_query, dict):
-        # Skip the whole process if parsed_query is a dictionary
+        
             return parsed_query
         if isinstance(parsed_query, str):
-            # Base case: if parsed_query is a string (term), return the set of documents containing that term
             return {doc_id: {parsed_query} for doc_id in self.invertedList.get(parsed_query, set())}
 
         if isinstance(parsed_query, list) and len(parsed_query) == 1:
-            # Single term in a list
-            return self._eval_query(parsed_query[0])
+            return self.eval_query(parsed_query[0])
 
         if isinstance(parsed_query, list):
             if parsed_query[0] == '-':
-                # Handle NOT operator (unary operator with only one operand)
-                term_set = self._eval_query(parsed_query[1])
+                term_set = self.eval_query(parsed_query[1])
                 return {doc_id: set() for doc_id in self.all_docs if doc_id not in term_set}
 
             if len(parsed_query) == 3:
-                operator = parsed_query[1]  # The operator is at the second position
-                left = self._eval_query(parsed_query[0])  # Evaluate the left part
-                right = self._eval_query(parsed_query[2])  # Evaluate the right part
+                operator = parsed_query[1]  
+                left = self.eval_query(parsed_query[0])  
+                right = self.eval_query(parsed_query[2])  
 
                 if operator == '&':
-                    common_docs = left.keys() & right.keys()  # Find the common documents
+                    common_docs = left.keys() & right.keys()  
                     return {doc_id: left[doc_id] & right[doc_id] for doc_id in common_docs}
 
                 elif operator == '|':
-                    all_docs = left.keys() | right.keys()  # Find all documents
+                    all_docs = left.keys() | right.keys()  
                     return {doc_id: left.get(doc_id, set()) | right.get(doc_id, set()) for doc_id in all_docs}
 
-        # Handle complex nested structures recursively
         if isinstance(parsed_query, list) and len(parsed_query) > 3:
-            # Evaluate nested subqueries
             subquery_results = parsed_query[0]
             for i in range(1, len(parsed_query), 2):
                 operator = parsed_query[i]
                 next_query = parsed_query[i + 1]
                 if operator == '&':
-                    subquery_results = self._eval_query([subquery_results,'&',next_query])
+                    subquery_results = self.eval_query([subquery_results,'&',next_query])
                 elif operator == '|':
-                    subquery_results = self._eval_query([subquery_results,'|',next_query])
+                    subquery_results = self.eval_query([subquery_results,'|',next_query])
             return subquery_results
 
         return {} 
@@ -374,7 +367,7 @@ class SignatureBasedBooleanModel(RetrievalModel):
         list_ids=[]
         unique_ids=set()
         parsed_query=self.parse_query(self.query)
-        unique_ids=self._eval_query(parsed_query)
+        unique_ids=self.eval_query(parsed_query)
         for ids in unique_ids.keys():
             list_ids.append(ids)
         with open('data/my_collection.json', 'r') as json_file:
@@ -388,7 +381,7 @@ class SignatureBasedBooleanModel(RetrievalModel):
         result = [1.0 if doc_id in list_ids else 0.0 for doc_id in collection]
         return result
         
-    def _eval_query(self, parsed_query):
+    def eval_query(self, parsed_query):
         if isinstance(parsed_query, ParseResults):
             parsed_query = parsed_query.asList()  
             
@@ -413,12 +406,12 @@ class SignatureBasedBooleanModel(RetrievalModel):
             return unique_ids
             
         if isinstance(parsed_query, list) and len(parsed_query) == 1:
-            return self._eval_query(parsed_query[0])
+            return self.eval_query(parsed_query[0])
             
         if len(parsed_query) == 3:
                 operator = parsed_query[1]  
-                left = self._eval_query(parsed_query[0])  
-                right = self._eval_query(parsed_query[2]) 
+                left = self.eval_query(parsed_query[0])  
+                right = self.eval_query(parsed_query[2]) 
                 
                 if operator == '&':
                     common_docs = left.keys() & right.keys() 
@@ -437,9 +430,9 @@ class SignatureBasedBooleanModel(RetrievalModel):
                 operator = parsed_query[i]
                 next_query = parsed_query[i + 1]
                 if operator == '&':
-                    subquery_results = self._eval_query([subquery_results, '&', next_query])
+                    subquery_results = self.eval_query([subquery_results, '&', next_query])
                 elif operator == '|':
-                    subquery_results = self._eval_query([subquery_results, '|', next_query])
+                    subquery_results = self.eval_query([subquery_results, '|', next_query])
             return subquery_results
 
         return {}
@@ -448,34 +441,83 @@ class SignatureBasedBooleanModel(RetrievalModel):
 class VectorSpaceModel(RetrievalModel):
     # TODO: Implement all abstract methods. (PR04)
     def __init__(self):
-        # raise NotImplementedError()  # TODO: Remove this line and implement the function.
-        pass
-    
+        self.document_vectors = []
+        self.document_ids = []
+        self.term_idf = {}
+        self.invertedListforVSM = defaultdict(list)
+        self.documents = []
+        with open('data/my_collection.json', 'r') as json_file:
+            json_collection = json.load(json_file)
+            for document in json_collection:
+                self.documents.append(document)
+                
     def __str__(self):
         return 'Vector Space Model'
 
     def document_to_representation(self, document: Document, stopword_filtering=False, stemming=False):
         terms = [term.lower() for term in document.terms]
-       
-        if (stopword_filtering and stemming):
+        
+        if stopword_filtering and stemming:
             terms = document.filtered_terms
-            stemmed_term_list = []
-            for t in terms:
-                stemmed_term_list.append(porter.stem_term(t))
-            terms = stemmed_term_list  
-        elif(stopword_filtering):
-            terms =  document.filtered_terms
-        elif(stemming):
+            terms = [porter.stem_term(t) for t in terms]
+        elif stopword_filtering:
+            terms = document.filtered_terms
+        elif stemming:
             terms = document.stemmed_terms
+        
+        term_freq = {}
+        for term in terms:
+            if term in term_freq:
+                term_freq[term] += 1
+            else:
+                term_freq[term] = 1
+         
+        for term, freq in term_freq.items():
+            self.invertedListforVSM[term].append((document.document_id, freq))
+        return term_freq
 
-        return terms
-    
+
     def query_to_representation(self, query: str):
-        pass
+        terms = query.lower().split()
+        query_vector = {}
+        
+        term_freq = {}
+        for term in terms:
+            if term in term_freq:
+                term_freq[term] += 1
+            else:
+                term_freq[term] = 1
+                
+        max_tf = max(term_freq.values())
+        
+        for term, freq in term_freq.items():
+            if term in self.invertedListforVSM:
+                idf = math.log(len(self.documents) / len(self.invertedListforVSM[term]))
+                wqk = (0.5 + 0.5 * (freq / max_tf)) * idf
+                query_vector[term] = wqk
+            else:
+                query_vector[term] = 0
+                
+        return query_vector
 
     def match(self, document_representation, query_representation) -> float | list[float]:
-        pass
 
+        doc_vector = [0] * len(query_representation)
+        for term, weight in query_representation.items():
+            if term in document_representation:
+                doc_vector.append(document_representation[term] * weight)
+            else:
+                doc_vector.append(0)
+        
+        doc_norm = math.sqrt(sum(value**2 for value in document_representation.values()))
+        query_norm = math.sqrt(sum(value**2 for value in query_representation.values()))
+        if doc_norm == 0 or query_norm == 0:
+            return 0.0
+        
+        similarity = sum(doc_vector) / (doc_norm * query_norm)
+        return similarity
+
+        
 class FuzzySetModel(RetrievalModel):
     # TODO: Implement all abstract methods. (PR04)
     def __init__(self):
